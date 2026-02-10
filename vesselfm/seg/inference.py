@@ -86,6 +86,7 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
     image_name = image_path.name.split('.')[0]
     
     # Check if we should use Dask-based chunking for this image
+    # Note: Chunking requires both Dask to be enabled and chunk_images to be True
     use_dask_chunks = cfg.dask.get("enabled", True) and cfg.dask.get("chunk_images", False)
     
     preds = []  # average over test time augmentations

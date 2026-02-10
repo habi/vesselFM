@@ -8,6 +8,10 @@ import torch.nn.functional as F
 
 logger = logging.getLogger(__name__)
 
+# Constants
+DEFAULT_CPU_COUNT = 4  # Fallback when os.cpu_count() returns None
+EPSILON = 1e-8  # Small value to prevent division by zero in normalization
+
 
 def compute_patch_coords(
     image_shape: Tuple[int, int, int, int, int],
@@ -28,10 +32,9 @@ def compute_patch_coords(
     _, _, img_d, img_h, img_w = image_shape
     patch_d, patch_h, patch_w = patch_size
     
-    # Compute step size based on overlap
-    step_d = max(1, int(patch_d * (1 - overlap)))
-    step_h = max(1, int(patch_h * (1 - overlap)))
-    step_w = max(1, int(patch_w * (1 - overlap)))
+    # Compute step size based on overlap for each dimension
+    steps = [max(1, int(size * (1 - overlap))) for size in patch_size]
+    step_d, step_h, step_w = steps
     
     coords = []
     
@@ -169,8 +172,8 @@ def stitch_patches(
         output[:, :, start_d:end_d, start_h:end_h, start_w:end_w] += logits * weight
         weights[:, :, start_d:end_d, start_h:end_h, start_w:end_w] += weight
     
-    # Normalize by weights
-    output = output / (weights + 1e-8)
+    # Normalize by weights (add epsilon to prevent division by zero)
+    output = output / (weights + EPSILON)
     
     return output
 
@@ -245,7 +248,7 @@ def process_image_with_dask_chunks(
             npartitions = min(len(coords_list), n_workers)
         else:
             import os
-            cpu_count = os.cpu_count() or 4
+            cpu_count = os.cpu_count() or DEFAULT_CPU_COUNT
             npartitions = min(len(coords_list), cpu_count)
         
         # Create function for processing a single patch
