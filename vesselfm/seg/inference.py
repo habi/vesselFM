@@ -82,6 +82,8 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
     Returns:
         dict: Dictionary containing image name and metrics (if mask_data is provided)
     """
+    image_name = image_path.name.split('.')[0]
+    
     preds = []  # average over test time augmentations
     with torch.no_grad():
         for scale in cfg.tta.scales:
@@ -119,15 +121,15 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
 
         # save final pred
         save_writer.write_seg(
-            pred_thresh.astype(np.uint8), output_folder / f"{image_path.name.split('.')[0]}_{cfg.file_app}pred.{file_ending}"
+            pred_thresh.astype(np.uint8), output_folder / f"{image_name}_{cfg.file_app}pred.{file_ending}"
         )
 
-        result = {"image_name": image_path.name.split('.')[0]}
+        result = {"image_name": image_name}
         
         if mask_data is not None:
             metrics = Evaluator().estimate_metrics(pred, mask, threshold=cfg.merging.threshold)  # no post-processing
-            logger.info(f"Dice of {image_path.name.split('.')[0]}: {metrics['dice'].item()}")
-            logger.info(f"clDice of {image_path.name.split('.')[0]}: {metrics['cldice'].item()}")
+            logger.info(f"Dice of {image_name}: {metrics['dice'].item()}")
+            logger.info(f"clDice of {image_name}: {metrics['cldice'].item()}")
             result["metrics"] = metrics
             
         return result
