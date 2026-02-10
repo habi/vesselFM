@@ -127,6 +127,16 @@ def run_inference(cfg):
         # Configure Dask to use threads for I/O bound tasks
         dask.config.set(scheduler='threads')
         
+        # Determine number of partitions based on config or image count
+        n_workers = cfg.dask.get("n_workers", None)
+        if n_workers:
+            npartitions = min(len(image_paths), n_workers)
+        else:
+            # Auto-detect: use reasonable default based on CPU count and image count
+            import os
+            cpu_count = os.cpu_count() or 4
+            npartitions = min(len(image_paths), cpu_count)
+        
         # Create a function to load and preprocess a single image
         def load_and_preprocess(args):
             idx, image_path = args
@@ -144,9 +154,9 @@ def run_inference(cfg):
             }
         
         # Create Dask bag for parallel loading
-        logger.info("Loading images in parallel with Dask...")
+        logger.info(f"Loading images in parallel with Dask using {npartitions} partitions...")
         image_args = list(enumerate(image_paths))
-        bag = db.from_sequence(image_args, npartitions=min(len(image_paths), 4))
+        bag = db.from_sequence(image_args, npartitions=npartitions)
         
         # Load images in parallel
         with ProgressBar():
