@@ -27,6 +27,13 @@ padding_mode: "constant"
 # eval & reproducibility
 seed: 404
 
+# dask configuration
+dask:
+  enabled: true
+  n_workers: null  # null means auto-detect based on available CPUs
+  threads_per_worker: 2
+  memory_limit: "auto"  # memory limit per worker
+
 # standard pre-processing transforms
 transforms_config:
   - EnsureChannelFirst:

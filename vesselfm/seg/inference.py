@@ -14,6 +14,7 @@ from monai.inferers import SlidingWindowInfererAdapt
 from skimage.morphology import remove_small_objects
 from skimage.exposure import equalize_hist
 
+
 from vesselfm.seg.utils.data import generate_transforms
 from vesselfm.seg.utils.io import determine_reader_writer
 from vesselfm.seg.utils.evaluation import Evaluator, calculate_mean_metrics
@@ -114,56 +115,152 @@ def run_inference(cfg):
         mode=cfg.mode, sigma_scale=cfg.sigma_scale, padding_mode=cfg.padding_mode
     )
 
-    # loop over images
-    metrics_dict = {}
-    with torch.no_grad():
-        for idx, image_path in tqdm(enumerate(image_paths), total=len(image_paths), desc="Processing images."):
-            preds = [] # average over test time augmentations
-            for scale in cfg.tta.scales:
-                # apply pre-processing transforms
-                image = transforms(image_reader_writer.read_images(image_path)[0].astype(np.float32))[None].to(device)
-                mask = torch.tensor(image_reader_writer.read_images(mask_paths[idx])[0]).bool() if mask_paths else None
-  
-                # apply test time augmentation
-                if cfg.tta.invert:
-                    image = 1 - image if image.mean() > cfg.tta.invert_mean_thresh else image
-                    
-                if cfg.tta.equalize_hist:
-                    image_np = image.cpu().squeeze().numpy()
-                    image_equal_hist_np = equalize_hist(image_np, nbins=cfg.tta.hist_bins)
-                    image = torch.from_numpy(image_equal_hist_np).to(image.device)[None][None]
+    # Check if Dask is enabled
+    use_dask = cfg.get("dask", {}).get("enabled", True)
+    
+    if use_dask and len(image_paths) > 1:
+        logger.info("Using Dask for parallel image loading and pre-processing")
+        import dask
+        import dask.bag as db
+        from dask.diagnostics import ProgressBar
+        
+        # Configure Dask to use threads for I/O bound tasks
+        dask.config.set(scheduler='threads')
+        
+        # Create a function to load and preprocess a single image
+        def load_and_preprocess(args):
+            idx, image_path = args
+            mask_path = mask_paths[idx] if mask_paths else None
+            
+            # Load image
+            image_data = image_reader_writer.read_images(image_path)[0].astype(np.float32)
+            mask_data = image_reader_writer.read_images(mask_path)[0] if mask_path else None
+            
+            return {
+                'idx': idx,
+                'image_path': image_path,
+                'image_data': image_data,
+                'mask_data': mask_data
+            }
+        
+        # Create Dask bag for parallel loading
+        logger.info("Loading images in parallel with Dask...")
+        image_args = list(enumerate(image_paths))
+        bag = db.from_sequence(image_args, npartitions=min(len(image_paths), 4))
+        
+        # Load images in parallel
+        with ProgressBar():
+            loaded_data = bag.map(load_and_preprocess).compute()
+        
+        # Process each loaded image with the model (sequential for GPU processing)
+        metrics_dict = {}
+        with torch.no_grad():
+            for data in tqdm(loaded_data, desc="Processing images"):
+                idx = data['idx']
+                image_path = data['image_path']
+                image_data = data['image_data']
+                mask_data = data['mask_data']
+                
+                preds = []  # average over test time augmentations
+                for scale in cfg.tta.scales:
+                    # apply pre-processing transforms
+                    image = transforms(image_data)[None].to(device)
+                    mask = torch.tensor(mask_data).bool() if mask_data is not None else None
+      
+                    # apply test time augmentation
+                    if cfg.tta.invert:
+                        image = 1 - image if image.mean() > cfg.tta.invert_mean_thresh else image
+                        
+                    if cfg.tta.equalize_hist:
+                        image_np = image.cpu().squeeze().numpy()
+                        image_equal_hist_np = equalize_hist(image_np, nbins=cfg.tta.hist_bins)
+                        image = torch.from_numpy(image_equal_hist_np).to(image.device)[None][None]
 
-                original_shape = image.shape
-                image = resample(image, factor=scale)
-                logits = inferer(image, model)
-                logits = resample(logits, target_shape=original_shape)
-                preds.append(logits.cpu().squeeze())
+                    original_shape = image.shape
+                    image = resample(image, factor=scale)
+                    logits = inferer(image, model)
+                    logits = resample(logits, target_shape=original_shape)
+                    preds.append(logits.cpu().squeeze())
 
-            # merging
-            if cfg.merging.max:
-                pred = torch.stack(preds).max(dim=0)[0].sigmoid()
-            else:
-                pred = torch.stack(preds).mean(dim=0).sigmoid()
-            pred_thresh = (pred > cfg.merging.threshold).numpy()
+                # merging
+                if cfg.merging.max:
+                    pred = torch.stack(preds).max(dim=0)[0].sigmoid()
+                else:
+                    pred = torch.stack(preds).mean(dim=0).sigmoid()
+                pred_thresh = (pred > cfg.merging.threshold).numpy()
 
-            # post-processing
-            if cfg.post.apply:
-                pred_thresh = remove_small_objects(
-                    pred_thresh, min_size=cfg.post.small_objects_min_size, connectivity=cfg.post.small_objects_connectivity
+                # post-processing
+                if cfg.post.apply:
+                    pred_thresh = remove_small_objects(
+                        pred_thresh, min_size=cfg.post.small_objects_min_size, connectivity=cfg.post.small_objects_connectivity
+                    )
+
+                # save final pred
+                save_writer.write_seg(
+                    pred_thresh.astype(np.uint8), output_folder / f"{image_path.name.split('.')[0]}_{cfg.file_app}pred.{file_ending}"
                 )
 
-            # save final pred
-            save_writer.write_seg(
-                pred_thresh.astype(np.uint8), output_folder / f"{image_path.name.split('.')[0]}_{cfg.file_app}pred.{file_ending}"
-            )
+                if mask_data is not None:
+                    metrics = Evaluator().estimate_metrics(pred, mask, threshold=cfg.merging.threshold)  # no post-processing
+                    logger.info(f"Dice of {image_path.name.split('.')[0]}: {metrics['dice'].item()}")
+                    logger.info(f"clDice of {image_path.name.split('.')[0]}: {metrics['cldice'].item()}")
+                    metrics_dict[image_path.name.split('.')[0]] = metrics
+    else:
+        if use_dask:
+            logger.info("Dask enabled but only 1 image found, using sequential processing")
+        else:
+            logger.info("Using sequential processing (Dask disabled)")
+        
+        # Original sequential processing
+        metrics_dict = {}
+        with torch.no_grad():
+            for idx, image_path in tqdm(enumerate(image_paths), total=len(image_paths), desc="Processing images."):
+                preds = []  # average over test time augmentations
+                for scale in cfg.tta.scales:
+                    # apply pre-processing transforms
+                    image = transforms(image_reader_writer.read_images(image_path)[0].astype(np.float32))[None].to(device)
+                    mask = torch.tensor(image_reader_writer.read_images(mask_paths[idx])[0]).bool() if mask_paths else None
+      
+                    # apply test time augmentation
+                    if cfg.tta.invert:
+                        image = 1 - image if image.mean() > cfg.tta.invert_mean_thresh else image
+                        
+                    if cfg.tta.equalize_hist:
+                        image_np = image.cpu().squeeze().numpy()
+                        image_equal_hist_np = equalize_hist(image_np, nbins=cfg.tta.hist_bins)
+                        image = torch.from_numpy(image_equal_hist_np).to(image.device)[None][None]
 
-            if mask_paths is not None:
-                metrics = Evaluator().estimate_metrics(pred, mask, threshold=cfg.merging.threshold) # no post-processing
-                logger.info(f"Dice of {image_path.name.split('.')[0]}: {metrics['dice'].item()}")
-                logger.info(f"clDice of {image_path.name.split('.')[0]}: {metrics['cldice'].item()}")
-                metrics_dict[image_path.name.split('.')[0]] = metrics
+                    original_shape = image.shape
+                    image = resample(image, factor=scale)
+                    logits = inferer(image, model)
+                    logits = resample(logits, target_shape=original_shape)
+                    preds.append(logits.cpu().squeeze())
 
-    if mask_paths is not None:
+                # merging
+                if cfg.merging.max:
+                    pred = torch.stack(preds).max(dim=0)[0].sigmoid()
+                else:
+                    pred = torch.stack(preds).mean(dim=0).sigmoid()
+                pred_thresh = (pred > cfg.merging.threshold).numpy()
+
+                # post-processing
+                if cfg.post.apply:
+                    pred_thresh = remove_small_objects(
+                        pred_thresh, min_size=cfg.post.small_objects_min_size, connectivity=cfg.post.small_objects_connectivity
+                    )
+
+                # save final pred
+                save_writer.write_seg(
+                    pred_thresh.astype(np.uint8), output_folder / f"{image_path.name.split('.')[0]}_{cfg.file_app}pred.{file_ending}"
+                )
+
+                if mask_paths is not None:
+                    metrics = Evaluator().estimate_metrics(pred, mask, threshold=cfg.merging.threshold)  # no post-processing
+                    logger.info(f"Dice of {image_path.name.split('.')[0]}: {metrics['dice'].item()}")
+                    logger.info(f"clDice of {image_path.name.split('.')[0]}: {metrics['cldice'].item()}")
+                    metrics_dict[image_path.name.split('.')[0]] = metrics
+
+    if mask_paths is not None and metrics_dict:
         mean_metrics = calculate_mean_metrics(list(metrics_dict.values()), round_to=cfg.round_to)
         logger.info(f"Mean metrics: dice {mean_metrics['dice'].item()}, cldice {mean_metrics['cldice'].item()}")
     logger.info("Done.")
