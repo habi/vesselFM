@@ -28,14 +28,15 @@ padding_mode: "constant"
 seed: 404
 
 # dask configuration
-# Note: When using the default thread-based scheduler, n_workers and threads_per_worker
-# are used to determine the number of parallel tasks. memory_limit is not enforced
-# with the thread scheduler but is available for distributed cluster configurations.
+# Dask is used for parallel image loading and preprocessing.
+# With the default thread-based scheduler, n_workers determines the number of parallel
+# tasks. threads_per_worker and memory_limit are reserved for future distributed cluster
+# support and currently have no effect.
 dask:
   enabled: true
   n_workers: null  # null means auto-detect based on available CPUs
-  threads_per_worker: 2  # Used for distributed cluster (not thread scheduler)
-  memory_limit: "auto"  # Used for distributed cluster (not thread scheduler)
+  threads_per_worker: 2  # Reserved for future distributed cluster support
+  memory_limit: "auto"  # Reserved for future distributed cluster support
 
 # standard pre-processing transforms
 transforms_config:

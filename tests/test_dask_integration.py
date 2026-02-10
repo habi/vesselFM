@@ -119,20 +119,12 @@ class TestDaskImports(unittest.TestCase):
     
     def test_dask_import(self):
         """Test that Dask can be imported."""
-        try:
-            import dask
-            import dask.bag
-            self.assertTrue(True)
-        except ImportError:
-            self.fail("Failed to import Dask modules")
+        import dask
+        import dask.bag
     
     def test_distributed_import(self):
         """Test that Dask distributed can be imported."""
-        try:
-            from dask.diagnostics import ProgressBar
-            self.assertTrue(True)
-        except ImportError:
-            self.fail("Failed to import Dask distributed modules")
+        from dask.diagnostics import ProgressBar
 
 
 if __name__ == "__main__":
