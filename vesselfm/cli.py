@@ -44,6 +44,16 @@ def build_overrides(args) -> list[str]:
 
     if args.apply_postprocessing:
         overrides.append("post.apply=True")
+    
+    # Dask-related overrides
+    if args.disable_dask:
+        overrides.append("dask.enabled=False")
+    
+    if args.dask_workers is not None:
+        overrides.append(f"dask.n_workers={args.dask_workers}")
+    
+    if args.dask_threads_per_worker is not None:
+        overrides.append(f"dask.threads_per_worker={args.dask_threads_per_worker}")
 
     return overrides
 
@@ -98,6 +108,11 @@ def main():
     parser.add_argument("--threshold", type=float, default=None, help="Segmentation threshold (0.0-1.0)")
     parser.add_argument("--tta-scales", type=float, nargs="+", default=None, help="TTA scales, e.g. 0.5 1.0 1.5")
     parser.add_argument("--apply-postprocessing", action="store_true", help="Apply post-processing")
+    
+    # Dask-related arguments
+    parser.add_argument("--disable-dask", action="store_true", help="Disable Dask parallel processing")
+    parser.add_argument("--dask-workers", type=int, default=None, help="Number of Dask workers (default: auto-detect)")
+    parser.add_argument("--dask-threads-per-worker", type=int, default=None, help="Threads per Dask worker (default: 2)")
 
     args = parser.parse_args()
 

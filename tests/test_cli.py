@@ -195,7 +195,10 @@ class TestConfigGeneration(unittest.TestCase):
             overlap=0.5,
             threshold=0.5,
             tta_scales=[1.0],
-            apply_postprocessing=False
+            apply_postprocessing=False,
+            disable_dask=False,
+            dask_workers=None,
+            dask_threads_per_worker=None
         )
         
         cfg = create_config(args)

@@ -27,6 +27,19 @@ Or, if you have installed the package:
 
     vesselfm-infer --input-folder /path/to/images --output-folder /path/to/output
 
+**Dask Integration for Large Datasets**: VesselFM now includes built-in Dask support for parallel processing of large image datasets. Dask is enabled by default and will automatically parallelize image loading and preprocessing operations. This is particularly useful when processing many images or large volumetric data.
+
+To control Dask behavior:
+
+    # Disable Dask (use sequential processing)
+    python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --disable-dask
+
+    # Specify number of workers (default: auto-detect based on CPU cores)
+    python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --dask-workers 4
+
+    # Specify threads per worker (default: 2)
+    python -m vesselfm.cli --input-folder /path/to/images --output-folder /path/to/output --dask-threads-per-worker 3
+
 ### Advanced Usage (Config File)
 For more control, adjust the [config file](vesselfm/seg/configs/inference.yaml) (see `#TODO`) and run:
 
