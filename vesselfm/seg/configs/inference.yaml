@@ -27,6 +27,17 @@ padding_mode: "constant"
 # eval & reproducibility
 seed: 404
 
+# dask configuration
+# Dask is used for parallel image loading and preprocessing with thread-based parallelism.
+# The n_workers setting determines the number of parallel tasks for image loading.
+dask:
+  enabled: true
+  n_workers: null  # null means auto-detect based on available CPUs
+  # Note: The following settings are placeholders for future distributed cluster support
+  # and currently have no effect with the default thread-based scheduler.
+  threads_per_worker: 2  # Not yet implemented - reserved for future distributed cluster
+  memory_limit: "auto"  # Not yet implemented - reserved for future distributed cluster
+
 # standard pre-processing transforms
 transforms_config:
   - EnsureChannelFirst:
