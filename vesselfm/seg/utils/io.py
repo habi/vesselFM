@@ -352,11 +352,121 @@ class SimpleITKReaderWriter(BaseReaderWriter):
         sitk.WriteImage(seg, seg_fname, compression)
 
 
+class ZarrNiiReaderWriter(BaseReaderWriter):
+    """Reader/writer for OME-Zarr files using ZarrNii."""
+
+    supported_file_formats = ["zarr", "ome.zarr"]
+
+    def __init__(self):
+        super().__init__()
+
+    def read_images(
+        self, image_fnames: Union[str, list]
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """
+        Read an OME-Zarr image using ZarrNii and return as a numpy array.
+
+        ZarrNii returns data with a leading channel dimension ``(c, z, y, x)``.
+        This method squeezes the channel dimension so the caller receives a
+        3-D array ``(z, y, x)``.
+
+        Args:
+            image_fnames: Path or list of paths to .zarr / .ome.zarr files.
+        Returns:
+            Tuple of (numpy array with shape (z, y, x), metadata dict).
+        """
+        from zarrnii import ZarrNii
+
+        if isinstance(image_fnames, (str, os.PathLike)):
+            image_fnames = [image_fnames]
+
+        image_data = []
+        for fname in image_fnames:
+            znimg = ZarrNii.from_file(str(fname))
+            data = np.array(znimg.data)
+            # ZarrNii stores data as (c, z, y, x); squeeze the channel dim
+            if data.ndim == 4:
+                data = data.squeeze(0)
+            if data.ndim != 3:
+                raise RuntimeError(
+                    f"Image {fname} has unexpected shape {data.shape} after "
+                    "squeezing channel dim; expected a 3-D spatial volume."
+                )
+            image_data.append(data)
+
+        if len(image_data) > 1:
+            result = np.vstack(image_data)
+        else:
+            result = image_data[0]
+
+        metadata = {"spacing": [1, 1, 1]}
+        spacing = getattr(znimg, "scale", None)
+        if spacing is not None and isinstance(spacing, dict):
+            # ZarrNii stores scale in axes_order (default ZYX)
+            try:
+                axes = getattr(znimg, "axes_order", "ZYX")
+                if "Z" in axes and "Y" in axes and "X" in axes:
+                    metadata["spacing"] = [
+                        spacing.get("z", 1.0),
+                        spacing.get("y", 1.0),
+                        spacing.get("x", 1.0),
+                    ]
+            except Exception:
+                pass
+        return result, metadata
+
+    def read_zarrnii(self, image_path: Union[str, os.PathLike]) -> "ZarrNii":
+        """
+        Read an OME-Zarr file and return a ZarrNii object (lazy Dask array).
+
+        Args:
+            image_path: Path to .zarr / .ome.zarr file.
+        Returns:
+            ZarrNii object with lazy Dask-backed data.
+        """
+        from zarrnii import ZarrNii
+
+        return ZarrNii.from_file(str(image_path))
+
+    def read_segs(
+        self, seg_fnames: Union[str, list]
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        return self.read_images(seg_fnames)
+
+    def write_seg(
+        self,
+        seg: np.ndarray,
+        seg_fname: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Write a segmentation array as an OME-Zarr file.
+
+        Args:
+            seg: Segmentation array (3-D, uint8 with shape ``(z, y, x)``).
+            seg_fname: Output path (should end with .zarr or .ome.zarr).
+            metadata: Optional metadata (currently unused).
+        """
+        import dask.array as da
+        from zarrnii import ZarrNii
+
+        # ZarrNii expects (c, z, y, x); add channel dimension if needed
+        if seg.ndim == 3:
+            seg = seg[np.newaxis, ...]
+
+        # Use reasonable chunk sizes to enable efficient partial reads/writes
+        chunk_shape = tuple(min(s, 256) for s in seg.shape)
+        darr = da.from_array(seg, chunks=chunk_shape)
+        znimg = ZarrNii.from_darr(darr)
+        znimg.to_ome_zarr(str(seg_fname), backend="ngff-zarr")
+
+
 def determine_reader_writer(file_ending: str):
     LIST_OF_READERS_WRITERS = [
         NumpyReaderWriter,
         SimpleITKReaderWriter,
         NumpySeriesReaderWriter,
+        ZarrNiiReaderWriter,
     ]
 
     for reader_writer in LIST_OF_READERS_WRITERS:

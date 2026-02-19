@@ -60,6 +60,11 @@ def build_overrides(args) -> list[str]:
     elif args.disable_dask_chunking:
         overrides.append("dask.chunk_images=False")
 
+    if args.chunk_size is not None:
+        overrides.append(
+            f"chunk_size=[{args.chunk_size[0]},{args.chunk_size[1]},{args.chunk_size[2]}]"
+        )
+
     return overrides
 
 
@@ -125,6 +130,15 @@ def main():
                                 help="Enable Dask-based chunking for individual images (default in config)")
     chunking_group.add_argument("--disable-dask-chunking", action="store_true", 
                                 help="Disable Dask-based chunking, use traditional sliding window")
+
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        nargs=3,
+        default=None,
+        metavar=("D", "H", "W"),
+        help="Chunk size (D H W) for OME-Zarr map_blocks inference (e.g. 256 256 256)",
+    )
 
     args = parser.parse_args()
 

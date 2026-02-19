@@ -23,6 +23,7 @@ def create_test_args(**overrides):
         'dask_threads_per_worker': None,
         'enable_dask_chunking': False,
         'disable_dask_chunking': False,
+        'chunk_size': None,
     }
     defaults.update(overrides)
     return Namespace(**defaults)

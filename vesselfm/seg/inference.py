@@ -19,6 +19,7 @@ from vesselfm.seg.utils.data import generate_transforms
 from vesselfm.seg.utils.io import determine_reader_writer
 from vesselfm.seg.utils.evaluation import Evaluator, calculate_mean_metrics
 from vesselfm.seg.utils.dask_patching import process_image_with_dask_chunks
+from vesselfm.seg.utils.zarr_inference import run_zarr_inference
 
 
 warnings.filterwarnings("ignore")
@@ -215,8 +216,37 @@ def run_inference(cfg):
 
     # Check if Dask is enabled
     use_dask = cfg.dask.get("enabled", True)
-    
-    if use_dask and len(image_paths) > 1:
+
+    # OME-Zarr / map_blocks path: activated when the input files are zarr stores
+    is_zarr = file_ending.lower() in ("zarr", "ome.zarr")
+    if is_zarr:
+        logger.info("OME-Zarr input detected – using ZarrNii map_blocks inference")
+        chunk_size = cfg.get("chunk_size", None)
+        if chunk_size is not None:
+            chunk_size = tuple(chunk_size)
+
+        # Metrics evaluation is not supported for the OME-Zarr path
+        # (ground truth masks would also need to be in OME-Zarr format).
+        metrics_dict = {}
+        for idx, image_path in tqdm(
+            enumerate(image_paths), total=len(image_paths), desc="Processing zarr images"
+        ):
+            image_name = image_path.name.split(".")[0]
+            znimg = image_reader_writer.read_zarrnii(image_path)
+            result_znimg = run_zarr_inference(
+                znimg=znimg,
+                model=model,
+                device=device,
+                transforms=transforms,
+                inferer=inferer,
+                threshold=cfg.merging.threshold,
+                chunk_size=chunk_size,
+            )
+            out_path = output_folder / f"{image_name}_{cfg.file_app}pred.zarr"
+            logger.info(f"Writing OME-Zarr segmentation to {out_path}")
+            result_znimg.to_ome_zarr(str(out_path), backend="ngff-zarr")
+
+    elif use_dask and len(image_paths) > 1:
         logger.info("Using Dask for parallel image loading and pre-processing")
         import dask
         import dask.bag as db
