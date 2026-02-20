@@ -41,8 +41,19 @@ def load_model(cfg, device):
     model.load_state_dict(ckpt)
     return model
 
+def _is_zarr_store(path: Path) -> bool:
+    """Return True if *path* is itself a Zarr / OME-Zarr store directory."""
+    return str(path).lower().endswith(".zarr")
+
+
 def get_paths(cfg):
-    image_paths = list(Path(cfg.image_path).iterdir())
+    image_path = Path(cfg.image_path)
+    # If the path itself is a Zarr/OME-Zarr store, treat it as a single image
+    # rather than iterating its internal contents.
+    if _is_zarr_store(image_path):
+        image_paths = [image_path]
+    else:
+        image_paths = list(image_path.iterdir())
     if cfg.mask_path:
         mask_paths = [Path(cfg.mask_path) / f"{p.name}" for p in image_paths]
         assert all(
@@ -201,7 +212,17 @@ def run_inference(cfg):
     output_folder = Path(cfg.output_folder)
     output_folder.mkdir(exist_ok=True)
 
-    file_ending = (cfg.image_file_ending if cfg.image_file_ending else image_paths[0].suffix)
+    # Determine file ending; for Zarr/OME-Zarr stores the path IS the image,
+    # so auto-detect from the path name and ignore any non-zarr config default.
+    first_path_name = image_paths[0].name.lower()
+    if first_path_name.endswith(".ome.zarr"):
+        file_ending = "ome.zarr"
+    elif first_path_name.endswith(".zarr"):
+        file_ending = "zarr"
+    elif cfg.image_file_ending:
+        file_ending = cfg.image_file_ending
+    else:
+        file_ending = image_paths[0].suffix[1:]
     image_reader_writer = determine_reader_writer(file_ending)()
     save_writer = determine_reader_writer(file_ending)()
 
