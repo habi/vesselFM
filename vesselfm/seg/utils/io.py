@@ -415,18 +415,35 @@ class ZarrNiiReaderWriter(BaseReaderWriter):
                 pass
         return result, metadata
 
-    def read_zarrnii(self, image_path: Union[str, os.PathLike]) -> "ZarrNii":
+    def read_zarrnii(
+        self,
+        image_path: Union[str, os.PathLike],
+        chunks=None,
+        rechunk: bool = False,
+    ) -> "ZarrNii":
         """
         Read an OME-Zarr file and return a ZarrNii object (lazy Dask array).
 
         Args:
             image_path: Path to .zarr / .ome.zarr file.
+            chunks: Optional chunk sizes for the Dask array.  If a 3-D tuple
+                ``(z, y, x)`` is given the channel dimension is prepended
+                automatically so that the effective chunks are ``(1, z, y, x)``.
+            rechunk: If ``True``, rechunk the Dask array after loading.
         Returns:
             ZarrNii object with lazy Dask-backed data.
         """
         from zarrnii import ZarrNii
 
-        return ZarrNii.from_file(str(image_path))
+        if chunks is not None:
+            chunks = tuple(chunks)
+            # ZarrNii stores data as (c, z, y, x); if a 3-D chunk size is
+            # provided, prepend the channel dimension automatically.
+            if len(chunks) == 3:
+                chunks = (1,) + chunks
+            return ZarrNii.from_ome_zarr(str(image_path), chunks=chunks, rechunk=rechunk)
+
+        return ZarrNii.from_ome_zarr(str(image_path))
 
     def read_segs(
         self, seg_fnames: Union[str, list]

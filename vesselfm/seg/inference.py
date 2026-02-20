@@ -232,7 +232,11 @@ def run_inference(cfg):
             enumerate(image_paths), total=len(image_paths), desc="Processing zarr images"
         ):
             image_name = image_path.name.split(".")[0]
-            znimg = image_reader_writer.read_zarrnii(image_path)
+            znimg = image_reader_writer.read_zarrnii(
+                image_path,
+                chunks=chunk_size,
+                rechunk=chunk_size is not None,
+            )
             result_znimg = run_zarr_inference(
                 znimg=znimg,
                 model=model,
