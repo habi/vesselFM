@@ -24,6 +24,9 @@ mode: "constant"
 sigma_scale: 0.125
 padding_mode: "constant"
 
+# OME-Zarr / map_blocks chunk size (D H W); null = use the file's native chunks
+chunk_size: null
+
 # eval & reproducibility
 seed: 404
 

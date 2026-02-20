@@ -200,7 +200,8 @@ class TestConfigGeneration(unittest.TestCase):
             dask_workers=None,
             dask_threads_per_worker=None,
             enable_dask_chunking=False,
-            disable_dask_chunking=False
+            disable_dask_chunking=False,
+            chunk_size=None,
         )
         
         cfg = create_config(args)
