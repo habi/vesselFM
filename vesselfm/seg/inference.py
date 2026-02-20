@@ -268,7 +268,7 @@ def run_inference(cfg):
                 threshold=cfg.merging.threshold,
                 chunk_size=chunk_size,
             )
-            out_path = output_folder / f"{image_name}_{cfg.file_app}pred.zarr"
+            out_path = output_folder / f"{image_name}_{cfg.file_app}pred.ome.zarr"
             logger.info(f"Writing OME-Zarr segmentation to {out_path}")
             result_znimg.to_ome_zarr(str(out_path), backend="ngff-zarr")
 
