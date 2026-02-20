@@ -1,14 +1,16 @@
-"""OME-Zarr inference using ZarrNii and Dask map_blocks.
+"""OME-Zarr inference using ZarrNii and chunk-wise processing.
 
 This module adapts the vesselFM inference pipeline to process large 3D OME-Zarr
-volumes in a memory-efficient, blockwise manner via ``dask.array.map_blocks``.
+volumes in a memory-efficient, blockwise manner with real-time progress tracking.
 """
 
+import itertools
 import logging
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -112,12 +114,11 @@ def run_zarr_inference(
     threshold: float = 0.5,
     chunk_size: Optional[Tuple[int, int, int]] = None,
 ) -> "ZarrNii":
-    """Process an OME-Zarr volume with vesselFM using Dask ``map_blocks``.
+    """Process an OME-Zarr volume with vesselFM chunk by chunk.
 
     The image is re-chunked to *chunk_size* (if given) and each chunk is
-    independently segmented by :class:`VesselFMPlugin`.  Results are lazily
-    assembled into a new :class:`zarrnii.ZarrNii` object and are not
-    materialised until the caller calls ``.compute()`` or writes to disk.
+    independently segmented by :class:`VesselFMPlugin` with a real-time
+    progress bar.
 
     Args:
         znimg: Input :class:`zarrnii.ZarrNii` object backed by a Dask array.
@@ -130,8 +131,8 @@ def run_zarr_inference(
             is partitioned.  ``None`` keeps the existing zarr chunk layout.
 
     Returns:
-        New :class:`zarrnii.ZarrNii` instance whose ``.data`` is a lazy Dask
-        array of ``uint8`` segmentation values.
+        New :class:`zarrnii.ZarrNii` instance whose ``.data`` is a Dask array
+        of ``uint8`` segmentation values.
     """
     import dask.array as da
     from zarrnii import ZarrNii
@@ -156,18 +157,29 @@ def run_zarr_inference(
         logger.info(f"Rechunking OME-Zarr data to effective_chunk={effective_chunk}")
         data = data.rechunk(effective_chunk)
     else:
-        logger.info("Using existing OME-Zarr chunk layout for map_blocks inference")
+        logger.info("Using existing OME-Zarr chunk layout for inference")
 
-    def _segment_block(block: np.ndarray) -> np.ndarray:
-        return plugin.segment(block)
+    n_chunks = int(np.prod(data.numblocks))
+    logger.info(f"Applying vesselFM inference ({n_chunks} chunks)")
 
-    logger.info("Applying vesselFM inference via dask map_blocks")
-    segmented = da.map_blocks(
-        _segment_block,
-        data,
-        dtype=np.uint8,
-        meta=np.array([], dtype=np.uint8),
-    )
+    # Pre-allocate the output array and iterate over blocks explicitly so the
+    # progress bar updates in real time without putting tqdm inside a dask task.
+    seg_np = np.empty(data.shape, dtype=np.uint8)
+
+    with tqdm(total=n_chunks, desc="Processing chunks", unit="chunk") as pbar:
+        for block_idx in itertools.product(*[range(n) for n in data.numblocks]):
+            slices = tuple(
+                slice(
+                    sum(data.chunks[dim][:i]),
+                    sum(data.chunks[dim][: i + 1]),
+                )
+                for dim, i in enumerate(block_idx)
+            )
+            block = data[slices].compute()
+            seg_np[slices] = plugin.segment(block)
+            pbar.update(1)
+
+    segmented = da.from_array(seg_np, chunks=data.chunks)
 
     result_znimg = znimg.copy(name=f"{znimg.name}_vesselFM_seg")
     result_znimg.data = segmented
