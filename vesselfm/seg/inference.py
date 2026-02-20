@@ -16,7 +16,7 @@ from skimage.exposure import equalize_hist
 
 
 from vesselfm.seg.utils.data import generate_transforms
-from vesselfm.seg.utils.io import determine_reader_writer, ZarrNiiReaderWriter
+from vesselfm.seg.utils.io import determine_reader_writer
 from vesselfm.seg.utils.evaluation import Evaluator, calculate_mean_metrics
 from vesselfm.seg.utils.dask_patching import process_image_with_dask_chunks
 from vesselfm.seg.utils.zarr_inference import run_zarr_inference
@@ -224,8 +224,8 @@ def run_inference(cfg):
     else:
         file_ending = image_paths[0].suffix[1:]
     image_reader_writer = determine_reader_writer(file_ending)()
-    save_writer = ZarrNiiReaderWriter()
-    output_file_ending = "ome.zarr"
+    save_writer = determine_reader_writer(file_ending)()
+    output_file_ending = file_ending
 
     # init sliding window inferer
     logger.debug(f"Sliding window patch size: {cfg.patch_size}")
