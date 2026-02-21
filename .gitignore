@@ -4,9 +4,16 @@
 *.pyc
 *.log
 *.png
+*.pt
+*.ome.zarr
 __pycache__
 
 experiments
+results
+result
+new_res
+checkpoint
+checkpoints
 data
 runs
 ckpts
