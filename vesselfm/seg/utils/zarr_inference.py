@@ -4,13 +4,11 @@ This module adapts the vesselFM inference pipeline to process large 3D OME-Zarr
 volumes in a memory-efficient, blockwise manner with real-time progress tracking.
 """
 
-import itertools
 import logging
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +133,7 @@ def run_zarr_inference(
         of ``uint8`` segmentation values.
     """
     import dask.array as da
+    from dask.diagnostics import ProgressBar
     from zarrnii import ZarrNii
 
     plugin = VesselFMPlugin(
@@ -160,26 +159,17 @@ def run_zarr_inference(
         logger.info("Using existing OME-Zarr chunk layout for inference")
 
     n_chunks = int(np.prod(data.numblocks))
-    logger.info(f"Applying vesselFM inference ({n_chunks} chunks)")
+    logger.info(f"Applying vesselFM inference with map_blocks ({n_chunks} chunks)")
 
-    # Pre-allocate the output array and iterate over blocks explicitly so the
-    # progress bar updates in real time without putting tqdm inside a dask task.
-    seg_np = np.empty(data.shape, dtype=np.uint8)
+    # Build a lazy computation graph with map_blocks – no full-array pre-allocation
+    segmented = data.map_blocks(plugin.segment, dtype=np.uint8)
 
-    with tqdm(total=n_chunks, desc="Processing chunks", unit="chunk") as pbar:
-        for block_idx in itertools.product(*[range(n) for n in data.numblocks]):
-            slices = tuple(
-                slice(
-                    sum(data.chunks[dim][:i]),
-                    sum(data.chunks[dim][: i + 1]),
-                )
-                for dim, i in enumerate(block_idx)
-            )
-            block = data[slices].compute()
-            seg_np[slices] = plugin.segment(block)
-            pbar.update(1)
+    # Materialise the lazy graph with a real-time progress bar
+    logger.info("Processing chunks...")
+    with ProgressBar(dt=0.5):
+        seg_computed = segmented.compute()
 
-    segmented = da.from_array(seg_np, chunks=data.chunks)
+    segmented = da.from_array(seg_computed, chunks=data.chunks)
 
     result_znimg = znimg.copy(name=f"{znimg.name}_vesselFM_seg")
     result_znimg.data = segmented
