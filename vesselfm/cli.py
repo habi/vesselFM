@@ -65,6 +65,9 @@ def build_overrides(args) -> list[str]:
             f"chunk_size=[{args.chunk_size[0]},{args.chunk_size[1]},{args.chunk_size[2]}]"
         )
 
+    if args.downsample_level is not None:
+        overrides.append(f"downsample_level={args.downsample_level}")
+
     return overrides
 
 
@@ -138,6 +141,13 @@ def main():
         default=None,
         metavar=("D", "H", "W"),
         help="Chunk size (D H W) for OME-Zarr map_blocks inference (e.g. 256 256 256)",
+    )
+
+    parser.add_argument(
+        "--downsample-level",
+        type=int,
+        default=None,
+        help="OME-Zarr pyramid level to load (0 = highest resolution, higher = more downsampled)",
     )
 
     args = parser.parse_args()

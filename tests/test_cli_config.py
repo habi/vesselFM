@@ -26,7 +26,9 @@ def test_default_config():
         dask_workers=None,
         dask_threads_per_worker=None,
         enable_dask_chunking=False,
-        disable_dask_chunking=False
+        disable_dask_chunking=False,
+        chunk_size=None,
+        downsample_level=None,
     )
     
     cfg = create_config(args)
@@ -60,7 +62,9 @@ def test_enable_dask_chunking():
         dask_workers=None,
         dask_threads_per_worker=None,
         enable_dask_chunking=True,
-        disable_dask_chunking=False
+        disable_dask_chunking=False,
+        chunk_size=None,
+        downsample_level=None,
     )
     
     cfg = create_config(args)
@@ -92,7 +96,9 @@ def test_disable_dask_chunking():
         dask_workers=None,
         dask_threads_per_worker=None,
         enable_dask_chunking=False,
-        disable_dask_chunking=True
+        disable_dask_chunking=True,
+        chunk_size=None,
+        downsample_level=None,
     )
     
     cfg = create_config(args)
@@ -124,7 +130,9 @@ def test_disable_dask_completely():
         dask_workers=None,
         dask_threads_per_worker=None,
         enable_dask_chunking=False,
-        disable_dask_chunking=False
+        disable_dask_chunking=False,
+        chunk_size=None,
+        downsample_level=None,
     )
     
     cfg = create_config(args)
@@ -156,7 +164,9 @@ def test_dask_workers():
         dask_workers=8,
         dask_threads_per_worker=None,
         enable_dask_chunking=False,
-        disable_dask_chunking=False
+        disable_dask_chunking=False,
+        chunk_size=None,
+        downsample_level=None,
     )
     
     cfg = create_config(args)

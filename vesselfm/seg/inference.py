@@ -246,6 +246,7 @@ def run_inference(cfg):
         chunk_size = cfg.get("chunk_size", None)
         if chunk_size is not None:
             chunk_size = tuple(chunk_size)
+        downsample_level = cfg.get("downsample_level", 0)
 
         # Metrics evaluation is not supported for the OME-Zarr path
         # (ground truth masks would also need to be in OME-Zarr format).
@@ -258,6 +259,7 @@ def run_inference(cfg):
                 image_path,
                 chunks=chunk_size,
                 rechunk=chunk_size is not None,
+                level=downsample_level,
             )
             out_path = output_folder / f"{image_name}_{cfg.file_app}pred.ome.zarr"
             logger.info(f"Writing OME-Zarr segmentation to {out_path}")

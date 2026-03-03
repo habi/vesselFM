@@ -202,6 +202,7 @@ class TestConfigGeneration(unittest.TestCase):
             enable_dask_chunking=False,
             disable_dask_chunking=False,
             chunk_size=None,
+            downsample_level=None,
         )
         
         cfg = create_config(args)

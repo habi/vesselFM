@@ -420,6 +420,7 @@ class ZarrNiiReaderWriter(BaseReaderWriter):
         image_path: Union[str, os.PathLike],
         chunks=None,
         rechunk: bool = False,
+        level: int = 0,
     ) -> "ZarrNii":
         """
         Read an OME-Zarr file and return a ZarrNii object (lazy Dask array).
@@ -430,6 +431,7 @@ class ZarrNiiReaderWriter(BaseReaderWriter):
                 ``(z, y, x)`` is given the channel dimension is prepended
                 automatically so that the effective chunks are ``(1, z, y, x)``.
             rechunk: If ``True``, rechunk the Dask array after loading.
+            level: OME-Zarr pyramid level to load (0 = highest resolution).
         Returns:
             ZarrNii object with lazy Dask-backed data.
         """
@@ -441,9 +443,14 @@ class ZarrNiiReaderWriter(BaseReaderWriter):
             # provided, prepend the channel dimension automatically.
             if len(chunks) == 3:
                 chunks = (1,) + chunks
-            return ZarrNii.from_ome_zarr(str(image_path), chunks=chunks, rechunk=rechunk)
 
-        return ZarrNii.from_ome_zarr(str(image_path))
+        return ZarrNii.from_ome_zarr(
+            str(image_path),
+            channel_labels=["CD31"],
+            level=level,
+            chunks=chunks if chunks is not None else "auto",
+            rechunk=rechunk,
+        )
 
     def read_segs(
         self, seg_fnames: Union[str, list]

@@ -27,6 +27,9 @@ padding_mode: "constant"
 # OME-Zarr / map_blocks chunk size (D H W); null = use the file's native chunks
 chunk_size: null
 
+# OME-Zarr pyramid level to load (0 = highest resolution, higher = more downsampled)
+downsample_level: 0
+
 # eval & reproducibility
 seed: 404
 
