@@ -261,7 +261,7 @@ def run_inference(cfg):
                 rechunk=chunk_size is not None,
                 level=downsample_level,
             )
-            out_path = output_folder / f"{image_name}_{cfg.file_app}pred.ome.zarr"
+            out_path = output_folder / f"{image_name}_{cfg.file_app}pred_lvl-{downsample_level}.ome.zarr"
             logger.info(f"Writing OME-Zarr segmentation to {out_path}")
             # run_zarr_inference writes directly to out_path; return value is not needed here.
             run_zarr_inference(
