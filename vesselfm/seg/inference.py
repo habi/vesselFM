@@ -259,7 +259,10 @@ def run_inference(cfg):
                 chunks=chunk_size,
                 rechunk=chunk_size is not None,
             )
-            result_znimg = run_zarr_inference(
+            out_path = output_folder / f"{image_name}_{cfg.file_app}pred.ome.zarr"
+            logger.info(f"Writing OME-Zarr segmentation to {out_path}")
+            # run_zarr_inference writes directly to out_path; return value is not needed here.
+            run_zarr_inference(
                 znimg=znimg,
                 model=model,
                 device=device,
@@ -267,10 +270,8 @@ def run_inference(cfg):
                 inferer=inferer,
                 threshold=cfg.merging.threshold,
                 chunk_size=chunk_size,
+                out_path=str(out_path),
             )
-            out_path = output_folder / f"{image_name}_{cfg.file_app}ssspred.ome.zarr"
-            logger.info(f"Writing OME-Zarr segmentation to {out_path}")
-            result_znimg.to_ome_zarr(str(out_path))
 
     elif use_dask and len(image_paths) > 1:
         logger.info("Using Dask for parallel image loading and pre-processing")
