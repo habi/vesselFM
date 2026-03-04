@@ -14,7 +14,7 @@ round_to: 2
 
 # model & ckpt
 device: cuda:0
-ckpt_path: /path/to/ckpt.pt
+ckpt_path: /nfs/khan/trainees/ffallahz/vesselFM/checkpoints/vesselFM_base.pt
 
 # sliding window inferer
 batch_size: 16
