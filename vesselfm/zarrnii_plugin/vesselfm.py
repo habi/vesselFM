@@ -3,6 +3,8 @@ import torch.nn.functional as F
 import hydra
 import numpy as np
 from monai.inferers import SlidingWindowInfererAdapt
+from pathlib import Path
+from vesselfm.seg.utils.data import generate_transforms
 
 from zarrnii.plugins import SegmentationPlugin
 from zarrnii.plugins.segmentation.base import hookimpl
@@ -10,10 +12,56 @@ from zarrnii.plugins.segmentation.base import hookimpl
 import logging
 from typing import Any, Dict, Optional, Tuple
 
-import numpy as np
-import torch
 
 logger = logging.getLogger(__name__)
+
+
+def create_config():
+    """
+    Create a Hydra-composed configuration, then override from CLI args.
+
+    Args:
+        args (argparse.Namespace): Parsed command-line arguments used to build
+            the Hydra overrides for inference (e.g., input/output folders,
+            device, batch size, patch size, overlap, threshold, TTA scales,
+            and post-processing flag).
+
+    Returns:
+        DictConfig: A configuration object compatible with ``hydra.utils.instantiate``.
+    """
+    from hydra import compose, initialize_config_dir
+    from hydra.core.global_hydra import GlobalHydra
+
+    config_dir = Path(__file__).parent.parent / "seg" / "configs"
+    if not config_dir.exists():
+        raise FileNotFoundError(f"Config dir not found: {config_dir}")
+
+
+    # If create_config could be called multiple times in the same process (tests, notebooks),
+    # Hydra needs to be cleared before re-initializing.
+    if GlobalHydra.instance().is_initialized():
+        GlobalHydra.instance().clear()
+
+    with initialize_config_dir(config_dir=str(config_dir), version_base="1.3"):
+        cfg = compose(config_name="inference")
+
+    return cfg
+
+def load_model(cfg, device):
+    try:
+        logger.info(f"Loading model from {cfg.ckpt_path}.")
+        ckpt = torch.load(Path(cfg.ckpt_path), map_location=device, weights_only=True)
+    except:
+        logger.info(f"Loading model from Hugging Face.")
+        hf_hub_download(repo_id='bwittmann/vesselFM', filename='meta.yaml') # required to track downloads
+        ckpt = torch.load(
+            hf_hub_download(repo_id='bwittmann/vesselFM', filename='vesselFM_base.pt'),
+            map_location=device, weights_only=True
+        )
+
+    model = hydra.utils.instantiate(cfg.model)
+    model.load_state_dict(ckpt)
+    return model
 
 
 
@@ -27,7 +75,7 @@ class VesselFMPlugin(SegmentationPlugin):
 
     def __init__(
         self,
-        device: str,
+        device: str = "cuda:0",
         threshold: float = 0.5,
     ):
         """
@@ -38,6 +86,9 @@ class VesselFMPlugin(SegmentationPlugin):
             inferer: MONAI ``SlidingWindowInfererAdapt`` instance.
             threshold: Sigmoid threshold for binarising logits (default 0.5).
         """
+
+        cfg = create_config()
+
         # seed libraries
         np.random.seed(cfg.seed)
         torch.manual_seed(cfg.seed)
@@ -56,7 +107,12 @@ class VesselFMPlugin(SegmentationPlugin):
         # init pre-processing transforms
         transforms = generate_transforms(cfg.transforms_config)
 
-     
+        inferer = SlidingWindowInfererAdapt(
+            roi_size=cfg.patch_size, sw_batch_size=cfg.batch_size, overlap=cfg.overlap, 
+            mode=cfg.mode, sigma_scale=cfg.sigma_scale, padding_mode=cfg.padding_mode
+        )
+
+
         self.model = model
         self.device = device
         self.transforms = transforms
