@@ -1,0 +1,35 @@
+defaults:
+  - hydra: default
+  - model: dyn_unet_base
+  - _self_
+
+
+# model & ckpt
+device: cuda:0
+ckpt_path: /nfs/khan/trainees/ffallahz/vesselFM/checkpoints/vesselFM_base.pt
+
+# sliding window inferer
+batch_size: 16
+patch_size: [128, 128, 128]
+overlap: 0.5
+mode: "constant"
+sigma_scale: 0.125
+padding_mode: "constant"
+
+# eval & reproducibility
+seed: 404
+
+# standard pre-processing transforms
+transforms_config:
+  - EnsureChannelFirst:
+      channel_dim: "no_channel"
+  - ScaleIntensityRangePercentiles:
+      lower: 1
+      upper: 99
+      b_min: 0
+      b_max: 1
+      clip: true
+  - ToTensor:
+      device: null
+
+

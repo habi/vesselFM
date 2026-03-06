@@ -18,13 +18,7 @@ logger = logging.getLogger(__name__)
 
 def create_config():
     """
-    Create a Hydra-composed configuration, then override from CLI args.
-
-    Args:
-        args (argparse.Namespace): Parsed command-line arguments used to build
-            the Hydra overrides for inference (e.g., input/output folders,
-            device, batch size, patch size, overlap, threshold, TTA scales,
-            and post-processing flag).
+    Create a Hydra-composed configuration.
 
     Returns:
         DictConfig: A configuration object compatible with ``hydra.utils.instantiate``.
@@ -43,7 +37,7 @@ def create_config():
         GlobalHydra.instance().clear()
 
     with initialize_config_dir(config_dir=str(config_dir), version_base="1.3"):
-        cfg = compose(config_name="inference")
+        cfg = compose(config_name="inference_zarrnii")
 
     return cfg
 
@@ -107,19 +101,7 @@ class VesselFMPlugin(SegmentationPlugin):
         # init pre-processing transforms
         transforms = generate_transforms(cfg.transforms_config)
 
-        inferer = SlidingWindowInfererAdapt(
-            roi_size=cfg.patch_size, sw_batch_size=cfg.batch_size, overlap=cfg.overlap, 
-            mode=cfg.mode, sigma_scale=cfg.sigma_scale, padding_mode=cfg.padding_mode
-        )
-
-
-        self.model = model
-        self.device = device
-        self.transforms = transforms
-        self.inferer = inferer
-        self.threshold = threshold
-
-
+    
         # init sliding window inferer
         logger.debug(f"Sliding window patch size: {cfg.patch_size}")
         logger.debug(f"Sliding window batch size: {cfg.batch_size}.")
@@ -128,6 +110,14 @@ class VesselFMPlugin(SegmentationPlugin):
             roi_size=cfg.patch_size, sw_batch_size=cfg.batch_size, overlap=cfg.overlap, 
             mode=cfg.mode, sigma_scale=cfg.sigma_scale, padding_mode=cfg.padding_mode
         )
+
+        self.model = model
+        self.device = device
+        self.transforms = transforms
+        self.inferer = inferer
+        self.threshold = threshold
+
+
 
     @hookimpl
     def segment(
@@ -177,14 +167,5 @@ class VesselFMPlugin(SegmentationPlugin):
     @hookimpl
     def segmentation_plugin_description(self) -> str:
         return "VesselFM vessel segmentation via sliding-window inference"
-
-    # Make the plugin usable directly without ZarrNii's pluggy machinery
-#    @property
-#    def name(self) -> str:
-#        return self.segmentation_plugin_name()
-
-#    @property
-#    def description(self) -> str:
-#        return self.segmentation_plugin_description()
 
 
