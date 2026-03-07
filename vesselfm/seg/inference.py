@@ -18,8 +18,6 @@ from skimage.exposure import equalize_hist
 from vesselfm.seg.utils.data import generate_transforms
 from vesselfm.seg.utils.io import determine_reader_writer
 from vesselfm.seg.utils.evaluation import Evaluator, calculate_mean_metrics
-from vesselfm.seg.utils.dask_patching import process_image_with_dask_chunks
-from vesselfm.seg.utils.zarr_inference import run_zarr_inference
 
 
 warnings.filterwarnings("ignore")
@@ -97,10 +95,7 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
     """
     image_name = image_path.name.split('.')[0]
     
-    # Check if we should use Dask-based chunking for this image
-    # Note: Chunking requires both Dask to be enabled and chunk_images to be True
-    use_dask_chunks = cfg.dask.get("enabled", True) and cfg.dask.get("chunk_images", False)
-    
+   
     preds = []  # average over test time augmentations
     with torch.no_grad():
         for scale in cfg.tta.scales:
@@ -120,25 +115,9 @@ def process_image(image_path, image_data, mask_data, cfg, model, transforms, sav
             original_shape = image.shape
             image = resample(image, factor=scale)
             
-            # Choose inference method based on configuration
-            if use_dask_chunks:
-                # Use Dask-based parallel chunking
-                logger.debug(f"Using Dask-based chunking for {image_name}")
-                logits = process_image_with_dask_chunks(
-                    image=image,
-                    model=model,
-                    device=device,
-                    patch_size=cfg.patch_size,
-                    overlap=cfg.overlap,
-                    batch_size=cfg.batch_size,
-                    sigma_scale=cfg.sigma_scale,
-                    use_dask=True,
-                    n_workers=cfg.dask.get("n_workers", None)
-                )
-            else:
-                # Use traditional sliding window inferer
-                logits = inferer(image, model)
-            
+            # Use traditional sliding window inferer
+            logits = inferer(image, model)
+        
             logits = resample(logits, target_shape=original_shape)
             preds.append(logits.cpu().squeeze())
 
@@ -236,136 +215,31 @@ def run_inference(cfg):
         mode=cfg.mode, sigma_scale=cfg.sigma_scale, padding_mode=cfg.padding_mode
     )
 
-    # Check if Dask is enabled
-    use_dask = cfg.dask.get("enabled", True)
 
-    # OME-Zarr / map_blocks path: activated when the input files are zarr stores
-    is_zarr = file_ending.lower() in ("zarr", "ome.zarr")
-    if is_zarr:
-        logger.info("OME-Zarr input detected – using ZarrNii map_blocks inference")
-        chunk_size = cfg.get("chunk_size", None)
-        if chunk_size is not None:
-            chunk_size = tuple(chunk_size)
-        downsample_level = cfg.get("downsample_level", 0)
-
-        # Metrics evaluation is not supported for the OME-Zarr path
-        # (ground truth masks would also need to be in OME-Zarr format).
-        metrics_dict = {}
-        for idx, image_path in tqdm(
-            enumerate(image_paths), total=len(image_paths), desc="Processing zarr images"
-        ):
-            image_name = image_path.name.split(".")[0]
-            znimg = image_reader_writer.read_zarrnii(
-                image_path,
-                chunks=chunk_size,
-                rechunk=chunk_size is not None,
-                level=downsample_level,
-            )
-            out_path = output_folder / f"{image_name}_{cfg.file_app}pred_lvl-{downsample_level}.ome.zarr"
-            logger.info(f"Writing OME-Zarr segmentation to {out_path}")
-            # run_zarr_inference writes directly to out_path; return value is not needed here.
-            run_zarr_inference(
-                znimg=znimg,
-                model=model,
-                device=device,
-                transforms=transforms,
-                inferer=inferer,
-                threshold=cfg.merging.threshold,
-                chunk_size=chunk_size,
-                out_path=str(out_path),
-            )
-
-    elif use_dask and len(image_paths) > 1:
-        logger.info("Using Dask for parallel image loading and pre-processing")
-        import dask
-        import dask.bag as db
-        from dask.diagnostics import ProgressBar
+   
+    # Sequential processing
+    metrics_dict = {}
+    for idx, image_path in tqdm(enumerate(image_paths), total=len(image_paths), desc="Processing images."):
+        # Load image and mask
+        image_data = image_reader_writer.read_images(image_path)[0].astype(np.float32)
+        mask_data = image_reader_writer.read_images(mask_paths[idx])[0] if mask_paths else None
         
-        # Configure Dask to use threads for I/O bound tasks
-        dask.config.set(scheduler='threads')
-        
-        # Determine number of partitions based on config or image count
-        n_workers = cfg.dask.get("n_workers", None)
-        if n_workers:
-            npartitions = min(len(image_paths), n_workers)
-        else:
-            # Auto-detect: use reasonable default based on CPU count and image count
-            import os
-            cpu_count = os.cpu_count() or 4
-            npartitions = min(len(image_paths), cpu_count)
-        
-        # Create a function to load and preprocess a single image
-        def load_and_preprocess(args):
-            idx, image_path = args
-            mask_path = mask_paths[idx] if mask_paths else None
-            
-            # Load image
-            image_data = image_reader_writer.read_images(image_path)[0].astype(np.float32)
-            mask_data = image_reader_writer.read_images(mask_path)[0] if mask_path else None
-            
-            return {
-                'idx': idx,
-                'image_path': image_path,
-                'image_data': image_data,
-                'mask_data': mask_data
-            }
-        
-        # Create Dask bag for parallel loading
-        logger.info(f"Loading images in parallel with Dask using {npartitions} partitions...")
-        image_args = list(enumerate(image_paths))
-        bag = db.from_sequence(image_args, npartitions=npartitions)
-        
-        # Load images in parallel
-        with ProgressBar():
-            loaded_data = bag.map(load_and_preprocess).compute()
-        
-        # Process each loaded image with the model (sequential for GPU processing)
-        metrics_dict = {}
-        for data in tqdm(loaded_data, desc="Processing images"):
-            result = process_image(
-                data['image_path'],
-                data['image_data'],
-                data['mask_data'],
-                cfg,
-                model,
-                transforms,
-                save_writer,
-                inferer,
-                output_file_ending,
-                device,
-                output_folder
-            )
-            if "metrics" in result:
-                metrics_dict[result["image_name"]] = result["metrics"]
-    else:
-        if use_dask:
-            logger.info("Dask enabled but only 1 image found, using sequential processing")
-        else:
-            logger.info("Using sequential processing (Dask disabled)")
-        
-        # Sequential processing
-        metrics_dict = {}
-        for idx, image_path in tqdm(enumerate(image_paths), total=len(image_paths), desc="Processing images."):
-            # Load image and mask
-            image_data = image_reader_writer.read_images(image_path)[0].astype(np.float32)
-            mask_data = image_reader_writer.read_images(mask_paths[idx])[0] if mask_paths else None
-            
-            # Process the image
-            result = process_image(
-                image_path,
-                image_data,
-                mask_data,
-                cfg,
-                model,
-                transforms,
-                save_writer,
-                inferer,
-                output_file_ending,
-                device,
-                output_folder
-            )
-            if "metrics" in result:
-                metrics_dict[result["image_name"]] = result["metrics"]
+        # Process the image
+        result = process_image(
+            image_path,
+            image_data,
+            mask_data,
+            cfg,
+            model,
+            transforms,
+            save_writer,
+            inferer,
+            output_file_ending,
+            device,
+            output_folder
+        )
+        if "metrics" in result:
+            metrics_dict[result["image_name"]] = result["metrics"]
 
     if mask_paths is not None and metrics_dict:
         mean_metrics = calculate_mean_metrics(list(metrics_dict.values()), round_to=cfg.round_to)
