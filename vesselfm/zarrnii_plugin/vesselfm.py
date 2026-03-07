@@ -6,8 +6,8 @@ from monai.inferers import SlidingWindowInfererAdapt
 from pathlib import Path
 from vesselfm.seg.utils.data import generate_transforms
 
-from zarrnii.plugins import SegmentationPlugin
-from zarrnii.plugins.segmentation.base import hookimpl
+from zarrnii_plugin_api import hookimpl
+
 
 import logging
 from typing import Any, Dict, Optional, Tuple
@@ -59,7 +59,7 @@ def load_model(cfg, device):
 
 
 
-class VesselFMPlugin(SegmentationPlugin):
+class VesselFMPlugin:
     """ZarrNii segmentation plugin that runs vesselFM inference on each Dask block.
 
     Each Dask block (3-D numpy array) is independently pre-processed, run
@@ -67,6 +67,7 @@ class VesselFMPlugin(SegmentationPlugin):
     ``uint8`` result of the same spatial shape.
     """
 
+    @hookimpl
     def __init__(
         self,
         device: str = "cuda:0",
