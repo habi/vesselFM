@@ -5,8 +5,8 @@ import numpy as np
 from monai.inferers import SlidingWindowInfererAdapt
 from pathlib import Path
 from vesselfm.seg.utils.data import generate_transforms
+from zarrnii.plugins import hookimpl
 
-from zarrnii_plugin_api import hookimpl
 
 
 import logging
