@@ -332,8 +332,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/44/54/a774313c19c1c0ae2c1897af697c12178904d67911f42c4a9bdddba68640/wasmtime-42.0.0-py3-none-manylinux1_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/9a/64/c53487d9f4968045b8afa51aed7ca44f58b2589e772f32745f3744476c82/yarl-1.23.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/44/15/bb13b4913ef95ad5448490821eee4671d0e67673342e4d4070854e5fe081/zarr-3.1.5-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c7/1c/bbf3937c54309d3c0d3d1e505a1d318276fbd8562e812c5cc5072ac9b4cc/zarrnii-0.16.1a2.dev1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ba/2b/9483d932cd22ec43c6250b6c05c1d9efa9bfad79a00a9a6360585225f57b/zarrnii_plugin_api-0.16.1a2.dev1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/0b/ab/59d0aeb99f8db40fe2fb6531a83cefc3f2e18feaca24b7e3b5357debf0d9/zarrnii-0.17.0a1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/80/ab/11a76c1e2126084fde2639514f24e6111b789b0bfa4fc6264a8975c7e1f1/zict-3.0.0-py2.py3-none-any.whl
       - pypi: ./
   default:
@@ -694,8 +693,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/44/54/a774313c19c1c0ae2c1897af697c12178904d67911f42c4a9bdddba68640/wasmtime-42.0.0-py3-none-manylinux1_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/9a/64/c53487d9f4968045b8afa51aed7ca44f58b2589e772f32745f3744476c82/yarl-1.23.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/44/15/bb13b4913ef95ad5448490821eee4671d0e67673342e4d4070854e5fe081/zarr-3.1.5-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c7/1c/bbf3937c54309d3c0d3d1e505a1d318276fbd8562e812c5cc5072ac9b4cc/zarrnii-0.16.1a2.dev1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ba/2b/9483d932cd22ec43c6250b6c05c1d9efa9bfad79a00a9a6360585225f57b/zarrnii_plugin_api-0.16.1a2.dev1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/0b/ab/59d0aeb99f8db40fe2fb6531a83cefc3f2e18feaca24b7e3b5357debf0d9/zarrnii-0.17.0a1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/80/ab/11a76c1e2126084fde2639514f24e6111b789b0bfa4fc6264a8975c7e1f1/zict-3.0.0-py2.py3-none-any.whl
       - pypi: ./
   dev:
@@ -1034,8 +1032,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/44/54/a774313c19c1c0ae2c1897af697c12178904d67911f42c4a9bdddba68640/wasmtime-42.0.0-py3-none-manylinux1_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/9a/64/c53487d9f4968045b8afa51aed7ca44f58b2589e772f32745f3744476c82/yarl-1.23.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/44/15/bb13b4913ef95ad5448490821eee4671d0e67673342e4d4070854e5fe081/zarr-3.1.5-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c7/1c/bbf3937c54309d3c0d3d1e505a1d318276fbd8562e812c5cc5072ac9b4cc/zarrnii-0.16.1a2.dev1-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/ba/2b/9483d932cd22ec43c6250b6c05c1d9efa9bfad79a00a9a6360585225f57b/zarrnii_plugin_api-0.16.1a2.dev1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/0b/ab/59d0aeb99f8db40fe2fb6531a83cefc3f2e18feaca24b7e3b5357debf0d9/zarrnii-0.17.0a1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/80/ab/11a76c1e2126084fde2639514f24e6111b789b0bfa4fc6264a8975c7e1f1/zict-3.0.0-py2.py3-none-any.whl
       - pypi: ./
 packages:
@@ -6390,7 +6387,7 @@ packages:
 - pypi: ./
   name: vesselfm
   version: 0.1.0
-  sha256: 2d8c8384588b8857ab59f3c793d06f4163197ff6b20e63dfde37f2522a76c08d
+  sha256: 780cdfcc3ee7abeaa173adbc97833d3eb0d16272befb44f47590fc101d914496
   requires_python: '>=3.11'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/linux-64/wandb-0.24.2-py311hc8fb587_0.conda
@@ -6822,12 +6819,12 @@ packages:
   - tomlkit ; extra == 'test'
   - uv ; extra == 'test'
   requires_python: '>=3.11'
-- pypi: https://files.pythonhosted.org/packages/c7/1c/bbf3937c54309d3c0d3d1e505a1d318276fbd8562e812c5cc5072ac9b4cc/zarrnii-0.16.1a2.dev1-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/0b/ab/59d0aeb99f8db40fe2fb6531a83cefc3f2e18feaca24b7e3b5357debf0d9/zarrnii-0.17.0a1-py3-none-any.whl
   name: zarrnii
-  version: 0.16.1a2.dev1
-  sha256: 2d78793328ad8f6790f8b84a5282a556521a6185e98c8d86f2d522bde1ee5a55
+  version: 0.17.0a1
+  sha256: 05eaaadf07fbe6e65648b1c2ca00855983a0ecfe5f860bf167ea6d64570a6e97
   requires_dist:
-  - dask>=2025.5.1
+  - dask>=2025.5.1,<2025.12.0
   - h5py>=3.14.0
   - ngff-zarr[cli,dask-image,itk,tensorstore,validate]>=0.13.1
   - nibabel>=5.2.0
@@ -6839,7 +6836,6 @@ packages:
   - scikit-image>=0.22.0
   - scipy>=1.12.0
   - zarr>=3.0.8
-  - zarrnii-plugin-api
   - black>=24.10.0 ; extra == 'dev'
   - bokeh>=3.4.1 ; extra == 'dev'
   - flake8-bugbear>=24.12.12 ; extra == 'dev'
@@ -6859,13 +6855,6 @@ packages:
   - h5py>=3.8.0 ; extra == 'imaris'
   - antspyx>=0.5.0 ; extra == 'n4'
   - templateflow>=0.8.0 ; extra == 'templateflow'
-  requires_python: '>=3.11,<3.14'
-- pypi: https://files.pythonhosted.org/packages/ba/2b/9483d932cd22ec43c6250b6c05c1d9efa9bfad79a00a9a6360585225f57b/zarrnii_plugin_api-0.16.1a2.dev1-py3-none-any.whl
-  name: zarrnii-plugin-api
-  version: 0.16.1a2.dev1
-  sha256: 155351f28ec24723849f42605b6481ca6efeecc022249b0966d7f0cb3ee7ba71
-  requires_dist:
-  - pluggy>=1.0.0
   requires_python: '>=3.11,<3.14'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/zfp-1.0.1-h909a3a2_5.conda
   sha256: 5fabe6cccbafc1193038862b0b0d784df3dae84bc48f12cac268479935f9c8b7
