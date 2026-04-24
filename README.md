@@ -9,14 +9,16 @@ For details, please refer to our [manuscript](https://openaccess.thecvf.com/cont
 
 
 ## 🟢 Installation
-First, set up a conda environment and install dependencies:
+First, set up a [conda](https://conda.io/) environment, clone the repository and install the dependencies:
 
-    conda create -n vesselfm python=3.9
-
-    conda activate vesselfm
-
-    pip install -e .
-
+```bash
+conda create -n vesselfm python=3.9
+conda activate vesselfm
+cd /tmp  # or wherever you want to install
+git clone https://github.com/bwittmann/vesselFM.git
+cd vesselFM
+pip install -e .
+```
 
 ## 🟢 *Zero*-Shot Segmentation
 If you are solely interested in running vesselFM's inference script for *zero*-shot segmentation of data at hand, adjust the respecitve [config file](vesselfm/seg/configs/inference.yaml) (see `#TODO`) and run:
