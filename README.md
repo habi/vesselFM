@@ -45,7 +45,6 @@ $\mathcal{D}_\text{flow}$: Synthetic data sampled from our flow matching-based d
 
 $\mathcal{D}_\text{real}$: Real data curated from 17 annotated blood vessel segmentation datasets ([here](./vesselfm/d_real)).
 
-
 ## 🟢 Citing vesselFM
 
 If you find our work useful for your research, please cite:
