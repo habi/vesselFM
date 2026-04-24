@@ -24,6 +24,7 @@ pip install -e .
 
 ## 🟢 *Zero*-Shot Segmentation
 
+If you are solely interested in running vesselFM's inference script for *zero*-shot segmentation of data at hand, adjust the respective [configuration file](vesselfm/seg/configs/inference.yaml) (see `#TODO`) and run:
 
     python vesselfm/seg/inference.py
 
