@@ -26,7 +26,9 @@ pip install -e .
 
 If you are solely interested in running vesselFM's inference script for *zero*-shot segmentation of data at hand, adjust the respective [configuration file](vesselfm/seg/configs/inference.yaml) (see `#TODO`) and run:
 
-    python vesselfm/seg/inference.py
+```bash
+python vesselfm/seg/inference.py
+```
 
 Additional information on inference, pre-training, and fine-tuning are available [here](./vesselfm/seg).
 Checkpoints will be downloaded automatically and are also available on [Hugging Face 🤗](https://huggingface.co/bwittmann/vesselFM).
